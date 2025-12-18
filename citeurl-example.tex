@@ -1,0 +1,80 @@
+\documentclass{article}
+
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{xstring}
+\usepackage{etoolbox}
+
+% ---- URL citation macros ----
+
+
+\newcounter{citeurlcounter}
+% List to store cited URLs
+\newcommand{\citedurllist}{} 
+
+% Command to create a hypertarget at the citation point
+\newcommand*\raisetarget[2][1em]{%
+  \raisebox{#1}[0pt][0pt]{\hypertarget{#2}{}}%
+}
+
+% Command to cite a URL
+\newcommand{\citeurl}[1]{%
+    \refstepcounter{citeurlcounter}%
+    % Remove protocol
+    \StrBehind{#1}{://}[\domain]%
+    % Take only the domain (before first /)
+    \IfSubStr{\domain}{/}{%
+        \StrBefore{\domain}{/}[\domainname]%
+    }{%
+        \edef\domainname{\domain}%
+    }%
+    % Remove leading www. if present
+    \IfBeginWith{\domainname}{www.}{%
+        \StrBehind{\domainname}{www.}[\domainname]%
+    }{}%
+    % Add URL to list (avoiding duplicates)
+    \ifcsundef{url@\theciteurlcounter}{%
+        \listgadd{\citedurllist}{#1}%
+        \expandafter\def\csname url@\theciteurlcounter\endcsname{1}%
+    }{}%
+    % Show clickable domain with counter
+    [\raisetarget{citeurl:\theciteurlcounter}{}% this is for hyperlink target
+    \hyperref[it:citeurl:\theciteurlcounter]{\theciteurlcounter}, % this is for hyperlink to the list
+    \href{#1}{\domainname}]% # this is for clickable URL
+}
+
+% Command to show the list of cited URLs
+\newcommand{\showcitedurls}{%
+    \section*{Cited URLs}\label{sec:citedurls}%
+
+    The enumeration correspond to the citations in the text.\footnote{%
+            This is a nonstandard citation style chosen for convenience. 
+            It allows quick referencing without the overhead of managing a \href{https://en.wikipedia.org/wiki/BibTeX}{\texttt{.bib} file}, which can be cumbersome and time-consuming in this context.}%
+    \begin{enumerate}
+        \ifdefvoid{\citedurllist}{%
+            \item No URLs were cited.%
+        }{%
+            \renewcommand*\makelabel[1]{%
+                \hyperlink{citeurl:\theenumi}{##1}%
+            }%
+            \renewcommand*{\do}[1]{%
+                \item % we use the makelabel command to create a hyperlink
+                \label{it:citeurl:\theenumi}%
+                \url{##1}%
+            }%
+            \dolistloop{\citedurllist}
+        }
+    \end{enumerate}
+}%
+
+
+% ---- Document ----
+
+\begin{document}
+
+This document cites a website \citeurl{https://example.com}.
+Another reference points to \citeurl{https://www.wikipedia.org/wiki/LaTeX}.
+
+\showcitedurls
+
+\end{document}
