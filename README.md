@@ -11,9 +11,11 @@ This is useful for lightweight documents where full bibliographic management is 
 
 ## Requirements
 
-- `hyperref`
-- `xstring`
-- `etoolbox`
+First copy `citeurl.sty` to the same dictionary as your `.tex` file. Then use:
+
+```latex
+\usepackage{citeurl}
+```
 
 ## Usage
 
@@ -28,8 +30,6 @@ and later:
 ```latex
 \showcitedurls
 ```
-
-(This should be a `.sty` file but I've decided this is simpler)
 
 ## License
 
