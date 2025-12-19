@@ -18,44 +18,74 @@
 }
 
 % Command to cite a URL
-\newcommand{\citeurl}[1]{%
-    \refstepcounter{citeurlcounter}%
-    % Remove protocol
-    \StrBehind{#1}{://}[\domain]%
-    % Take only the domain (before first /)
-    \IfSubStr{\domain}{/}{%
-        \StrBefore{\domain}{/}[\domainname]%
+% 1. The Wrapper: Changes # catcode so LaTeX doesn't think it's a parameter
+\newcommand{\citeurl}{%
+    % --- START GROUP ---
+    \begingroup
+    \catcode`\#=12 
+    \citeurlaux
+}
+
+% 2. The Worker (HASH-BASED Deduplication)
+\newcommand{\citeurlaux}[1]{%  
+    % --- PRELIMINARY SETUP ---
+    % Ensure URL has a protocol
+    \edef\thelink{\detokenize{#1}}%
+    \IfSubStr{#1}{://}{%
+        \def\thelink{#1}%
     }{%
-        \edef\domainname{\domain}%
+        \def\thelink{http://#1}%
     }%
-    % Remove leading www. if present
-    \IfBeginWith{\domainname}{www.}{%
-        \StrBehind{\domainname}{www.}[\domainname]%
+    % remove trailing slash (usually they point to the same resource)
+    \IfEndWith{\thelink}{/}{%
+        \StrGobbleRight{\thelink}{1}[\thelink]%
     }{}%
-    % Add URL to list (avoiding duplicates)
-    \ifcsundef{url@\theciteurlcounter}{%
-        \listgadd{\citedurllist}{#1}%
-        \expandafter\def\csname url@\theciteurlcounter\endcsname{1}%
-    }{}%
-    % Show clickable domain with counter
-    [\raisetarget{citeurl:\theciteurlcounter}{}% this is for hyperlink target
-    \hyperref[it:citeurl:\theciteurlcounter]{\theciteurlcounter}, % this is for hyperlink to the list
-    \href{#1}{\domainname}]% # this is for clickable URL
+    % --- HASH-BASED DEDUPLICATION LOGIC ---
+    % Check if a command named 'urlhash@<the_url>' exists
+    \ifcsdef{urlhash@\thelink}{%
+        % IF EXISTS: Retrieve the ID stored in that command
+        \edef\thisid{\csuse{urlhash@\thelink}}%
+    }{%
+        % IF NEW: Increment counter, add to list, and SAVE ID in a hash
+        \refstepcounter{citeurlcounter}%
+        \expandafter\listgadd\expandafter{\expandafter\citedurllist\expandafter}\expandafter{\thelink}%
+        \edef\thisid{\theciteurlcounter}%
+        \csxdef{urlhash@\thelink}{\thisid}% Store ID for next time
+    }%
+    % --- FIXED LOGIC STARTS HERE ---
+    % Extract domain for display
+    \StrBehind{\thelink}{://}[\domainname]%
+    % Remove path, port, and www.
+    \IfSubStr{\domainname}{/}{\StrBefore{\domainname}{/}[\domainname]}{}%
+    \IfSubStr{\domainname}{:}{\StrBefore{\domainname}{:}[\domainname]}{}%
+    \IfBeginWith{\domainname}{www.}{\StrBehind{\domainname}{www.}[\domainname]}{}%
+    % Truncation
+    \StrLen{\domainname}[\domlength]%
+    \ifnum\domlength>30 
+        \StrRight{\domainname}{27}[\domainname]%
+        \edef\domainname{...\domainname}%
+    \fi
+    % --- OUTPUT THE CITATION ---
+    [\raisetarget{citeurl:\thisid}{}%
+    \hyperref[it:citeurl:\thisid]{\thisid}, %
+    \href{\thelink}{\domainname}]%
+    % --- END GROUP ---
+    \endgroup
 }
 
 % Command to show the list of cited URLs
 \newcommand{\showcitedurls}{%
     \section*{Cited URLs}\label{sec:citedurls}%
 
-    The enumeration correspond to the citations in the text.\footnote{%
-            This is a nonstandard citation style chosen for convenience. 
-            It allows quick referencing without the overhead of managing a \href{https://en.wikipedia.org/wiki/BibTeX}{\texttt{.bib} file}, which can be cumbersome and time-consuming in this context.}%
-    \begin{enumerate}
-        \ifdefvoid{\citedurllist}{%
-            \item No URLs were cited.%
-        }{%
+    \ifdefvoid{\citedurllist}{%
+            No URLs were cited.%
+    }{%
+        The enumeration correspond to the citations in the text.\footnote{%
+                This is a nonstandard citation style chosen for convenience. 
+                It allows quick referencing without the overhead of managing a \href{https://en.wikipedia.org/wiki/BibTeX}{\texttt{.bib} file}, which can be cumbersome and time-consuming in this context.}%
+        \begin{enumerate}
             \renewcommand*\makelabel[1]{%
-                \hyperlink{citeurl:\theenumi}{##1}%
+                \hyperlink{citeurl:\theenumi}{\hfill ##1}% The \hfill restores standard right-alignment
             }%
             \renewcommand*{\do}[1]{%
                 \item % we use the makelabel command to create a hyperlink
@@ -63,8 +93,8 @@
                 \url{##1}%
             }%
             \dolistloop{\citedurllist}
-        }
-    \end{enumerate}
+        \end{enumerate}
+    }
 }%
 
 
@@ -74,6 +104,45 @@
 
 This document cites a website \citeurl{https://example.com}.
 Another reference points to \citeurl{https://www.wikipedia.org/wiki/LaTeX}.
+
+
+% % TEST CASES:
+% \citeurl{www.example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com/}\\
+% \citeurl{https://www.example.com}\\
+% \citeurl{https://www.example.com/}\\
+% \citeurl{https://www.example.com:443}\\
+% \citeurl{https://www.example.com:443/a/a/a/a/a}\\
+% \citeurl{https://www.example.com/a_a/}\\
+% \citeurl{https://www.example.com/a/a/a/a/a}\\
+% \citeurl{https://www.example.com/a/a/a/a/a/}\\
+% \citeurl{https://www.example.com/aaaa/aaaa/aaaa/aaaa/aaaa/}\\
+% \citeurl{https://www.example.com/a/a/a/a/a/a.html}\\
+% \citeurl{https://www.example.com/a/a/a/a/a/a.pdf}\\
+% \citeurl{https://www.example.com/a#top}\\
+% \citeurl{https://www.example.com/a#aaaaaaaaaaaaaaaaaaaaa}\\
+% \citeurl{https://www.example.com/a?query=aaa#top}\\
+% \citeurl{https://www.example.com/a?query=complex+test&sort=desc&filter[]=a&filter[]=b&filter[]=c&page=42&limit=100#top}\\
+
+% % misc
+% \citeurl{https://luminous-landscape.com/the-secret-of-the-nikon-z6-iii-camera-the-partially-stacked-sensor/}\\
+% \citeurl{https://subdomain.very-long-and-unnecessarily-descriptive-registry-service.experimental-tech-branch.example.org:8080/directory/v1/assets/documentation/archived/testing/long-filename-to-check-line-breaking-capabilities.html?user=test&session=12345#deep-anchor-link}\\
+
+% % different protocols and formats
+% \citeurl{ftp://example.com:333/}\\
+% \citeurl{https://one.one.one.one}\\
+% \citeurl{one.one.one.one}\\
+% \citeurl{1.1.1.1}\\
+% \citeurl{127.0.0.1/aaa}\\
+% \citeurl{127.0.0.1:333/aaa}\\
+
+% % now duplicates:
+% \citeurl{www.example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com/}\\
+% \citeurl{https://www.example.com/a/a/a/a/a}\\
+
 
 \showcitedurls
 
