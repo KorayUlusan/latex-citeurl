@@ -1,6 +1,6 @@
 # `\citeurl` - LaTeX URL Citation Macros
 
-A small LaTeX utility for citing URLs inline without BibTeX.
+A small LaTeX utility for citing URLs inline without BibTeX. See [citeurl-example.pdf](./citeurl-example.pdf) for examples.
 
 It provides:
 - A `\citeurl{}` command that inserts a numbered, clickable domain in the text.
