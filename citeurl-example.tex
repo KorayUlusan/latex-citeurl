@@ -17,6 +17,20 @@
   \raisebox{#1}[0pt][0pt]{\hypertarget{#2}{}}%
 }
 
+% OLD: Helper to convert number to letter (1->a, 2->b, etc.)
+% \newcommand{\numalph}[1]{%
+%     \ifcase#1\relax \or a\or b\or c\or d\or e\or f\or g\or h\or i\or j\or k\or l\or m\or n\or o\or p\or q\or r\or s\or t\or u\or v\or w\or x\or y\or z\else ?\fi%
+% }
+% 
+\ExplSyntaxOn
+% Helper to convert number to letter (1->a, 2->b, etc.)
+% a,b,c,...,z,aa,ab,ac,...,az,ba,bb,...
+\NewDocumentCommand{\numalph}{m}
+  { \int_to_alph:n { #1 } }
+\ExplSyntaxOff
+
+
+
 % Command to cite a URL
 % 1. The Wrapper: Changes # catcode so LaTeX doesn't think it's a parameter
 \newcommand{\citeurl}{%
@@ -79,24 +93,16 @@
     \fi
     % --- OUTPUT THE CITATION ---
     [\raisetarget{citeurl:\thisid:\occnum}{}% backlink target
-    \hyperref[it:citeurl:\thisid]{\thisid}, % citation number
-    \href{\thelink}{\domainname}]% hyperlink to URL
-    % --- END GROUP ---
+    \hyperref[it:citeurl:\thisid]{\thisid% citation number  
+    % conditional superscript for occurrence number (we never show the first occurrence) 
+    % TODO: to add 'a' we need future information
+    % Only show superscript if the final count for this ID is > 1
+    \ifnum\csuse{occcount@\thisid}>1\textsuperscript{\numalph{\occnum}}\fi
+    }%
+    , %
+    \href{\thelink}{\domainname}]%
     \endgroup
 }
-
-
-% OLD: Helper to convert number to letter (1->a, 2->b, etc.)
-% \newcommand{\numalph}[1]{%
-%     \ifcase#1\relax \or a\or b\or c\or d\or e\or f\or g\or h\or i\or j\or k\or l\or m\or n\or o\or p\or q\or r\or s\or t\or u\or v\or w\or x\or y\or z\else ?\fi%
-% }
-% 
-\ExplSyntaxOn
-% Helper to convert number to letter (1->a, 2->b, etc.)
-% a,b,c,...,z,aa,ab,ac,...,az,ba,bb,...
-\NewDocumentCommand{\numalph}{m}
-  { \int_to_alph:n { #1 } }
-\ExplSyntaxOff
 
 
 % Command to show the list of cited URLs
