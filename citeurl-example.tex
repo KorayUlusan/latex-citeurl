@@ -34,7 +34,7 @@
     \IfSubStr{#1}{://}{%
         \def\thelink{#1}%
     }{%
-        \def\thelink{http://#1}%
+        \def\thelink{http://#1}% we assume http instead of https
     }%
     % remove trailing slash (usually they point to the same resource)
     \IfEndWith{\thelink}{/}{%
@@ -51,7 +51,19 @@
         \expandafter\listgadd\expandafter{\expandafter\citedurllist\expandafter}\expandafter{\thelink}%
         \edef\thisid{\theciteurlcounter}%
         \csxdef{urlhash@\thelink}{\thisid}% Store ID for next time
+        % Initialize occurrence counter for this URL
+        \csxdef{occcount@\thisid}{0}%
     }%
+    % --- CITATION OCCURRENCE TRACKING ---
+    % Increment occurrence count
+    \ifcsdef{occcount@\thisid}{%
+        \edef\currentocc{\csuse{occcount@\thisid}}%
+        \edef\newocc{\number\numexpr\currentocc+1\relax}%
+        \csxdef{occcount@\thisid}{\newocc}%
+    }{%
+        \csxdef{occcount@\thisid}{1}%
+    }%
+    \edef\occnum{\csuse{occcount@\thisid}}%
     % --- FIXED LOGIC STARTS HERE ---
     % Extract domain for display
     \StrBehind{\thelink}{://}[\domainname]%
@@ -66,12 +78,26 @@
         \edef\domainname{...\domainname}%
     \fi
     % --- OUTPUT THE CITATION ---
-    [\raisetarget{citeurl:\thisid}{}%
-    \hyperref[it:citeurl:\thisid]{\thisid}, %
-    \href{\thelink}{\domainname}]%
+    [\raisetarget{citeurl:\thisid:\occnum}{}% backlink target
+    \hyperref[it:citeurl:\thisid]{\thisid}, % citation number
+    \href{\thelink}{\domainname}]% hyperlink to URL
     % --- END GROUP ---
     \endgroup
 }
+
+
+% OLD: Helper to convert number to letter (1->a, 2->b, etc.)
+% \newcommand{\numalph}[1]{%
+%     \ifcase#1\relax \or a\or b\or c\or d\or e\or f\or g\or h\or i\or j\or k\or l\or m\or n\or o\or p\or q\or r\or s\or t\or u\or v\or w\or x\or y\or z\else ?\fi%
+% }
+% 
+\ExplSyntaxOn
+% Helper to convert number to letter (1->a, 2->b, etc.)
+% a,b,c,...,z,aa,ab,ac,...,az,ba,bb,...
+\NewDocumentCommand{\numalph}{m}
+  { \int_to_alph:n { #1 } }
+\ExplSyntaxOff
+
 
 % Command to show the list of cited URLs
 \newcommand{\showcitedurls}{%
@@ -84,13 +110,47 @@
                 This is a nonstandard citation style chosen for convenience. 
                 It allows quick referencing without the overhead of managing a \href{https://en.wikipedia.org/wiki/BibTeX}{\texttt{.bib} file}, which can be cumbersome and time-consuming in this context.}%
         \begin{enumerate}
-            \renewcommand*\makelabel[1]{%
-                \hyperlink{citeurl:\theenumi}{\hfill ##1}% The \hfill restores standard right-alignment
-            }%
+            \newcounter{urlitemcount}%
             \renewcommand*{\do}[1]{%
+                \stepcounter{urlitemcount}%
+                % Check occurrence count to decide on label formatting
+                \ifcsdef{occcount@\theurlitemcount}{%
+                    \edef\occcount{\csuse{occcount@\theurlitemcount}}%
+                    \ifnum\occcount>1
+                        % Multiple occurrences: plain label, no hyperlink
+                        \renewcommand*\makelabel[1]{\hfill ####1}%
+                    \else
+                        % Single occurrence: hyperlinked label
+                        \renewcommand*\makelabel[1]{%
+                            \hyperlink{citeurl:\theurlitemcount:1}{\hfill ####1}%
+                        }%
+                    \fi
+                }{%
+                    % No occurrence data: default to hyperlink
+                    \renewcommand*\makelabel[1]{%
+                        \hyperlink{citeurl:\theurlitemcount:1}{\hfill ####1}%
+                    }%
+                }%
                 \item % we use the makelabel command to create a hyperlink
                 \label{it:citeurl:\theenumi}%
                 \url{##1}%
+                % Add back-reference links for multiple occurrences
+                \ifcsdef{occcount@\theenumi}{%
+                    \edef\occcount{\csuse{occcount@\theenumi}}%
+                    \ifnum\occcount>1
+                        \textsuperscript{%
+                            \count255=1
+                            \loop
+                                \hyperlink{citeurl:\theenumi:\the\count255}{\numalph{\count255}}%
+                                \ifnum\count255<\occcount
+                                    ,\hspace{1pt}%
+                                \fi
+                                \advance\count255 by 1
+                            \ifnum\count255<\numexpr\occcount+1\relax
+                            \repeat
+                        }%
+                    \fi
+                }{}%
             }%
             \dolistloop{\citedurllist}
         \end{enumerate}
@@ -104,6 +164,8 @@
 
 This document cites a website \citeurl{https://example.com}.
 Another reference points to \citeurl{https://www.wikipedia.org/wiki/LaTeX}.
+
+You can also cite the same URL again \citeurl{https://example.com} to see deduplication in action.
 
 
 % % TEST CASES:
@@ -125,11 +187,11 @@ Another reference points to \citeurl{https://www.wikipedia.org/wiki/LaTeX}.
 % \citeurl{https://www.example.com/a?query=aaa#top}\\
 % \citeurl{https://www.example.com/a?query=complex+test&sort=desc&filter[]=a&filter[]=b&filter[]=c&page=42&limit=100#top}\\
 
-% % misc
+% misc\\
 % \citeurl{https://luminous-landscape.com/the-secret-of-the-nikon-z6-iii-camera-the-partially-stacked-sensor/}\\
 % \citeurl{https://subdomain.very-long-and-unnecessarily-descriptive-registry-service.experimental-tech-branch.example.org:8080/directory/v1/assets/documentation/archived/testing/long-filename-to-check-line-breaking-capabilities.html?user=test&session=12345#deep-anchor-link}\\
 
-% % different protocols and formats
+% different protocols and formats\\
 % \citeurl{ftp://example.com:333/}\\
 % \citeurl{https://one.one.one.one}\\
 % \citeurl{one.one.one.one}\\
@@ -137,12 +199,34 @@ Another reference points to \citeurl{https://www.wikipedia.org/wiki/LaTeX}.
 % \citeurl{127.0.0.1/aaa}\\
 % \citeurl{127.0.0.1:333/aaa}\\
 
-% % now duplicates:
+% now duplicates:\\
 % \citeurl{www.example.com}\\
 % \citeurl{https://example.com}\\
 % \citeurl{https://example.com/}\\
 % \citeurl{https://www.example.com/a/a/a/a/a}\\
-
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
+% \citeurl{https://example.com}\\
 
 \showcitedurls
 
