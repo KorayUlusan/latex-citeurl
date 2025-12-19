@@ -5,6 +5,10 @@
 \usepackage{xstring}
 \usepackage{etoolbox}
 
+% additional packages unrelated to core functionality
+\usepackage{microtype}
+\usepackage{xcolor}
+
 % ---- URL citation macros ----
 
 
@@ -97,9 +101,9 @@
     % conditional superscript for occurrence number (we never show the first occurrence) 
     % TODO: to add 'a' we need future information
     % Only show superscript if the final count for this ID is > 1
-    \ifnum\csuse{occcount@\thisid}>1\textsuperscript{\numalph{\occnum}}\fi
+    % \ifnum\csuse{occcount@\thisid}>1\textsuperscript{\numalph{\occnum}}\fi
     }%
-    , %
+    ,~% delimiter with small space
     \href{\thelink}{\domainname}]%
     \endgroup
 }
@@ -169,8 +173,7 @@
 \begin{document}
 
 This document cites a website \citeurl{https://example.com}.
-Another reference points to \citeurl{https://www.wikipedia.org/wiki/LaTeX}.
-
+Another reference points to \citeurl{https://wikipedia.org/wiki/LaTeX} using \colorbox{yellow}{\texttt{\textbackslash citeurl\{https://wikipedia.org/wiki/LaTeX\}}}.
 You can also cite the same URL again \citeurl{https://example.com} to see deduplication in action.
 
 
@@ -234,6 +237,8 @@ You can also cite the same URL again \citeurl{https://example.com} to see dedupl
 % \citeurl{https://example.com}\\
 % \citeurl{https://example.com}\\
 
+\vspace{5em}
+Then we list all cited URLs using \colorbox{yellow}{\texttt{\textbackslash showcitedurls}}:
 \showcitedurls
 
 \end{document}
